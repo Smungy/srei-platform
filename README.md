@@ -1,105 +1,203 @@
-<a href="https://demo-nextjs-with-supabase.vercel.app/">
-  <img alt="Next.js and Supabase Starter Kit - the fastest way to build apps with Next.js and Supabase" src="https://demo-nextjs-with-supabase.vercel.app/opengraph-image.png">
-  <h1 align="center">Next.js and Supabase Starter Kit</h1>
-</a>
+# SREI - Sistema de Recomendaciones de Entretenimiento Inteligente
 
-<p align="center">
- The fastest way to build apps with Next.js and Supabase
-</p>
+Sistema inteligente de recomendaciones de entretenimiento con IA, enfocado en videojuegos.
 
-<p align="center">
-  <a href="#features"><strong>Features</strong></a> ·
-  <a href="#demo"><strong>Demo</strong></a> ·
-  <a href="#deploy-to-vercel"><strong>Deploy to Vercel</strong></a> ·
-  <a href="#clone-and-run-locally"><strong>Clone and run locally</strong></a> ·
-  <a href="#feedback-and-issues"><strong>Feedback and issues</strong></a>
-  <a href="#more-supabase-examples"><strong>More Examples</strong></a>
-</p>
-<br/>
+## Stack Tecnológico
 
-## Features
+- **Framework**: Next.js 15 con App Router y Turbopack
+- **Base de Datos**: Supabase (PostgreSQL + Auth + RLS)
+- **Estilos**: Tailwind CSS + shadcn/ui
+- **Animaciones**: Framer Motion (spring physics, stagger, transitions)
+- **API de Juegos**: RAWG API
+- **TypeScript**: Tipado completo en todo el proyecto
 
-- Works across the entire [Next.js](https://nextjs.org) stack
-  - App Router
-  - Pages Router
-  - Middleware
-  - Client
-  - Server
-  - It just works!
-- supabase-ssr. A package to configure Supabase Auth to use cookies
-- Password-based authentication block installed via the [Supabase UI Library](https://supabase.com/ui/docs/nextjs/password-based-auth)
-- Styling with [Tailwind CSS](https://tailwindcss.com)
-- Components with [shadcn/ui](https://ui.shadcn.com/)
-- Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
-  - Environment variables automatically assigned to Vercel project
+## Prerequisitos
 
-## Demo
+- Node.js 18+ instalado
+- pnpm instalado
+- Git instalado
 
-You can view a fully working demo at [demo-nextjs-with-supabase.vercel.app](https://demo-nextjs-with-supabase.vercel.app/).
+## Instalación y Configuración
 
-## Deploy to Vercel
+### 1. Clonar el Repositorio
 
-Vercel deployment will guide you through creating a Supabase account and project.
+```bash
+git clone <url-del-repositorio>
+cd srei
+```
 
-After installation of the Supabase integration, all relevant environment variables will be assigned to the project so the deployment is fully functioning.
+### 2. Instalar Dependencias
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&project-name=nextjs-with-supabase&repository-name=nextjs-with-supabase&demo-title=nextjs-with-supabase&demo-description=This+starter+configures+Supabase+Auth+to+use+cookies%2C+making+the+user%27s+session+available+throughout+the+entire+Next.js+app+-+Client+Components%2C+Server+Components%2C+Route+Handlers%2C+Server+Actions+and+Middleware.&demo-url=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2F&external-id=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&demo-image=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2Fopengraph-image.png)
+```bash
+pnpm install
+```
 
-The above will also clone the Starter kit to your GitHub, you can clone that locally and develop locally.
+Esto instalará todas las dependencias necesarias incluyendo:
 
-If you wish to just develop locally and not deploy to Vercel, [follow the steps below](#clone-and-run-locally).
+- Next.js
+- Supabase
+- Framer Motion
+- shadcn/ui
+- Tailwind CSS
 
-## Clone and run locally
+### 3. Configurar Variables de Entorno
 
-1. You'll first need a Supabase project which can be made [via the Supabase dashboard](https://database.new)
+**Usa las credenciales que te pasé**. Crea un archivo `.env.local` en la raíz del proyecto con el siguiente contenido:
 
-2. Create a Next.js app using the Supabase Starter template npx command
+```bash
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=<usa-la-url-que-te-pase>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<usa-la-key-que-te-pase>
 
-   ```bash
-   npx create-next-app --example with-supabase with-supabase-app
-   ```
+# RAWG API
+RAWG_API_KEY=<usa-la-key-que-te-pase>
 
-   ```bash
-   yarn create next-app --example with-supabase with-supabase-app
-   ```
+# OpenAI (para futuras features)
+OPENAI_API_KEY=<usa-la-key-que-te-pase>
+```
 
-   ```bash
-   pnpm create next-app --example with-supabase with-supabase-app
-   ```
+> **IMPORTANTE**: Nunca compartas estas keys públicamente ni las subas a Git. El archivo `.env.local` ya está en `.gitignore`.
 
-3. Use `cd` to change into the app's directory
+### 4. Ejecutar el Proyecto
 
-   ```bash
-   cd with-supabase-app
-   ```
+```bash
+pnpm dev
+```
 
-4. Rename `.env.example` to `.env.local` and update the following:
+El proyecto estará disponible en: **http://localhost:3000**
 
-   ```
-   NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=[INSERT SUPABASE PROJECT API ANON KEY]
-   ```
+## � Uso de la Aplicación
 
-   Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` can be found in [your Supabase project's API settings](https://supabase.com/dashboard/project/_?showConnect=true)
+### Páginas Principales:
 
-5. You can now run the Next.js local development server:
+1. **/** - Página de inicio con presentación del proyecto
+2. **/games** - Explorador de videojuegos (página principal)
+3. **/auth/login** - Inicio de sesión (opcional)
+4. **/auth/sign-up** - Registro de usuarios (opcional)
 
-   ```bash
-   npm run dev
-   ```
 
-   The starter kit should now be running on [localhost:3000](http://localhost:3000/).
+## � Estructura del Proyecto
 
-6. This template comes with the default shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
+```
+srei/
+├── app/                          # App Router de Next.js
+│   ├── page.tsx                 # Página principal
+│   ├── layout.tsx               # Layout raíz
+│   ├── globals.css              # Estilos globales
+│   ├── games/                   # Sección de videojuegos
+│   │   └── page.tsx            # Explorador de juegos
+│   ├── auth/                    # Autenticación
+│   │   ├── login/
+│   │   ├── sign-up/
+│   │   └── ...
+│   ├── protected/               # Área protegida
+│   └── api/                     # API Routes
+│       └── games/               # Endpoints de juegos
+│           ├── route.ts         # GET /api/games
+│           ├── genres/route.ts  # GET /api/games/genres
+│           └── [id]/route.ts    # GET /api/games/:id
+├── components/                   # Componentes React
+│   ├── game-explorer.tsx        # Componente principal de exploración
+│   ├── theme-switcher.tsx       # Selector de tema
+│   ├── auth-button.tsx          # Botón de autenticación
+│   └── ui/                      # Componentes de shadcn/ui
+├── hooks/                        # Custom React Hooks
+│   └── useGames.ts              # Hooks para fetch de datos
+├── lib/                          # Librerías y utilidades
+│   ├── supabase/                # Configuración de Supabase
+│   │   ├── client.ts
+│   │   ├── server.ts
+│   │   └── middleware.ts
+│   ├── rawg/                    # Cliente de RAWG API
+│   │   └── client.ts
+│   └── utils.ts                 # Utilidades generales
+├── supabase/                     # Configuración de base de datos
+│   └── schema.sql               # Schema de PostgreSQL
+├── .env.local                    # Variables de entorno (NO SUBIR A GIT)
+├── .env.example                  # Ejemplo de variables de entorno
+└── package.json                  # Dependencias del proyecto
+```
 
-> Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
+## Base de Datos (Supabase)
 
-## Feedback and issues
+El proyecto usa Supabase con las siguientes tablas:
 
-Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).
+- **profiles**: Perfiles de usuario
+- **saved_games**: Juegos guardados por usuarios
+- **search_history**: Historial de búsquedas
+- **game_embeddings**: Embeddings de juegos para IA
+- **user_game_interactions**: Interacciones usuario-juego
 
-## More Supabase examples
+> La base de datos ya está configurada. No necesitas ejecutar migraciones.
 
-- [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
-- [Cookie-based Auth and the Next.js 13 App Router (free course)](https://youtube.com/playlist?list=PL5S4mPUpp4OtMhpnp93EFSo42iQ40XjbF)
-- [Supabase Auth and the Next.js App Router](https://github.com/supabase/supabase/tree/master/examples/auth/nextjs)
+## APIs Utilizadas
+
+### RAWG API
+
+- **Propósito**: Obtener información de videojuegos
+- **Endpoints usados**:
+  - `/games` - Búsqueda de juegos
+  - `/genres` - Lista de géneros
+  - `/games/{id}` - Detalles de un juego
+
+### Supabase
+
+- **Auth**: Autenticación de usuarios
+- **Database**: PostgreSQL con Row Level Security
+- **Storage**: (Futuro) Para imágenes de perfil
+
+## Troubleshooting
+
+### El proyecto no inicia
+
+```bash
+# Elimina node_modules y reinstala
+rm -rf node_modules
+pnpm install
+```
+
+### Error de variables de entorno
+
+- Verifica que `.env.local` existe y tiene las 4 variables
+- Reinicia el servidor después de crear/modificar `.env.local`
+
+### Error de Supabase
+
+- Verifica que las URLs y keys sean correctas
+- Asegúrate de que no haya espacios extras en las variables
+
+### Imágenes de juegos no cargan
+
+- La RAWG API tiene límite de requests
+- Espera unos segundos y recarga
+
+## Scripts Disponibles
+
+```bash
+pnpm dev          # Inicia servidor de desarrollo
+pnpm build        # Construye para producción
+pnpm start        # Inicia servidor de producción
+pnpm lint         # Ejecuta ESLint
+```
+
+## 🔄 Próximas Funcionalidades
+
+- [ ] Sistema de favoritos funcional
+- [ ] Recomendaciones con IA (OpenAI)
+- [ ] Paginación de resultados
+- [ ] Filtros avanzados
+- [ ] Sección de películas
+- [ ] Sección de libros
+- [ ] Sección de música
+
+## 🤝 Equipo
+
+Este es el proyecto SREI desarrollado en equipo. Si tienes dudas sobre el código o necesitas ayuda, contacta a tu compañero de equipo.
+
+## 📄 Licencia
+
+Proyecto académico/personal - Todos los derechos reservados
+
+---
+
+**¡Listo para desarrollar!** 🚀 Cualquier duda, revisa este README o contacta al equipo.

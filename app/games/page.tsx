@@ -1,8 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { AuthButton } from "@/components/auth-button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import Link from "next/link";
+import { AnimatedLogo } from "@/components/animated-logo";
 import { GameExplorer } from "@/components/game-explorer";
+import Link from "next/link";
 
 export default async function GamesPage() {
   const supabase = await createClient();
@@ -17,7 +18,7 @@ export default async function GamesPage() {
       <nav className="sticky top-0 z-50 w-full flex justify-center border-b border-b-foreground/10 h-16 bg-gradient-to-b from-background/70 via-background/60 to-background/50 backdrop-blur-md">
         <div className="w-full max-w-7xl flex justify-between items-center p-3 px-5 text-sm">
           <div className="flex gap-5 items-center font-semibold">
-            <Link href={"/"}>SREI</Link>
+            <AnimatedLogo />
           </div>
           <div className="flex items-center gap-3">
             <ThemeSwitcher />

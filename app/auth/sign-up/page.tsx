@@ -1,21 +1,24 @@
 import { SignUpForm } from "@/components/sign-up-form";
 
-export default function Page({
+export default async function Page({
   searchParams,
 }: {
-  searchParams: { message?: string };
+  searchParams: Promise<{ message?: string }>;
 }) {
-  const showSaveMessage = searchParams.message === "register-to-save";
+  const params = await searchParams;
+  const showSaveMessage = params.message === "register-to-save";
 
   return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm space-y-4">
+    <div className="flex min-h-[calc(100vh-80px)] w-full items-center justify-center p-6 md:p-10">
+      <div className="w-full max-w-[400px] space-y-4">
         {showSaveMessage && (
-          <div className="p-4 bg-accent rounded-lg border border-border">
+          <div className="p-4 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg">
             <p className="text-sm text-center">
-              🎮 <strong>¡Regístrate para guardar tus juegos favoritos!</strong>
+              <span className="font-semibold text-yellow-900 dark:text-yellow-100">
+                💡 Regístrate para guardar tus juegos favoritos!
+              </span>
               <br />
-              <span className="text-muted-foreground text-xs">
+              <span className="text-yellow-700 dark:text-yellow-300 text-xs">
                 También obtendrás recomendaciones personalizadas
               </span>
             </p>

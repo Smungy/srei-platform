@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { SavedGamesGrid } from "@/components/saved-games-grid";
 
 interface Profile {
   id: string;
@@ -62,6 +62,21 @@ export default async function ProtectedPage() {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  // Función para eliminar un juego de favoritos
+  const handleRemoveGame = async (gameId: number) => {
+    'use server';
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) return;
+
+    await supabase
+      .from('saved_games')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('game_id', gameId);
   };
 
   return (
@@ -136,59 +151,10 @@ export default async function ProtectedPage() {
             Tus Juegos Favoritos
           </h2>
           
-          {savedGames && savedGames.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {savedGames.map((game) => (
-                <div
-                  key={game.id}
-                  className="border border-border rounded-lg overflow-hidden hover:border-primary/50 transition-colors"
-                >
-                  {/* Thumbnail */}
-                  <div 
-                    className="w-full h-36 bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500"
-                    style={{
-                      backgroundImage: game.game_data.background_image 
-                        ? `url(${game.game_data.background_image})` 
-                        : undefined,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                    }}
-                  />
-                  
-                  {/* Info */}
-                  <div className="p-3 space-y-2">
-                    <h3 className="font-semibold text-sm text-foreground line-clamp-1">
-                      {game.game_data.name}
-                    </h3>
-                    
-                    {game.game_data.genres && game.game_data.genres.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {game.game_data.genres.slice(0, 2).map((genre: string, idx: number) => (
-                          <Badge key={idx} variant="secondary" className="text-xs">
-                            {genre}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {game.rating && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <span>⭐</span>
-                        <span>{game.rating}/5</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <p className="text-lg mb-2">Aún no has guardado ningún juego</p>
-              <p className="text-sm">
-                Explora juegos y guarda tus favoritos para verlos aquí
-              </p>
-            </div>
-          )}
+          <SavedGamesGrid 
+            initialGames={(savedGames || []) as never} 
+            onRemove={handleRemoveGame}
+          />
         </Card>
 
         {/* Estadísticas */}

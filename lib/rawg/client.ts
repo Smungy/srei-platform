@@ -141,7 +141,9 @@ export async function getGameDetails(gameId: number): Promise<RAWGGameDetails> {
  * Obtener lista de todos los géneros disponibles
  */
 export async function getGenres(): Promise<{ results: RAWGGenre[] }> {
-  const response = await fetch(`${RAWG_BASE_URL}/genres?key=${RAWG_API_KEY}`);
+  const response = await fetch(
+    `${RAWG_BASE_URL}/genres?key=${RAWG_API_KEY}&page_size=40`
+  );
 
   if (!response.ok) {
     throw new Error(`RAWG API Error: ${response.statusText}`);

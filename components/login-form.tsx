@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 export function LoginForm({
   className,
@@ -15,6 +16,7 @@ export function LoginForm({
 }: React.ComponentPropsWithoutRef<"div">) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -30,7 +32,15 @@ export function LoginForm({
         email,
         password,
       });
-      if (error) throw error;
+      if (error) {
+        // Mejorar mensajes de error comunes
+        if (error.message.includes('Invalid login credentials')) {
+          throw new Error('Email o contraseña incorrectos');
+        } else if (error.message.includes('invalid') && error.message.includes('email')) {
+          throw new Error('El formato del email no es válido');
+        }
+        throw error;
+      }
       router.push("/");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "Ocurrió un error");
@@ -81,15 +91,28 @@ export function LoginForm({
                 ¿Olvidaste tu contraseña?
               </Link>
             </div>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="bg-muted/50"
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="bg-muted/50 pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           {error && (
@@ -123,7 +146,7 @@ export function LoginForm({
             type="button"
             variant="outline"
             className="w-full font-medium"
-            onClick={() => router.push('/games')}
+            onClick={() => router.push('/')}
           >
             <svg 
               className="w-4 h-4 mr-2" 

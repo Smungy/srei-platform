@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 export function SignUpForm({
   className,
@@ -17,6 +18,8 @@ export function SignUpForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showRepeatPassword, setShowRepeatPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -27,6 +30,17 @@ export function SignUpForm({
     setIsLoading(true);
     setError(null);
 
+    // Validar formato de email (más permisivo para desarrollo)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError("Por favor ingresa un email válido");
+      setIsLoading(false);
+      return;
+    }
+
+    // Limpiar espacios del email
+    const cleanEmail = email.trim().toLowerCase();
+
     if (password !== repeatPassword) {
       setError("Las contraseñas no coinciden");
       setIsLoading(false);
@@ -34,14 +48,14 @@ export function SignUpForm({
     }
 
     if (password.length < 8) {
-      setError("La contraseña debe tener al menos 8 caracteres");
+      setError("La contraseña debe tener al menos 8 caracteres (configura esto también en Supabase)");
       setIsLoading(false);
       return;
     }
 
     try {
       const { error } = await supabase.auth.signUp({
-        email,
+        email: cleanEmail,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/protected`,
@@ -50,7 +64,18 @@ export function SignUpForm({
           },
         },
       });
-      if (error) throw error;
+      
+      if (error) {
+        // Mejorar mensajes de error comunes
+        if (error.message.includes('invalid') && error.message.includes('email')) {
+          throw new Error('El email ingresado no es válido o está bloqueado. Intenta con otro email o contacta soporte.');
+        } else if (error.message.includes('already registered') || error.message.includes('already exists')) {
+          throw new Error('Este email ya está registrado. Intenta iniciar sesión.');
+        } else if (error.message.includes('Email rate limit exceeded')) {
+          throw new Error('Demasiados intentos. Espera unos minutos e intenta de nuevo.');
+        }
+        throw error;
+      }
       router.push("/auth/sign-up-success");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "Ocurrió un error");
@@ -108,30 +133,56 @@ export function SignUpForm({
             <Label htmlFor="password" className="text-sm font-semibold text-foreground">
               Contraseña
             </Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Mínimo 8 caracteres"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="bg-muted/50"
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Mínimo 8 caracteres"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="bg-muted/50 pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="repeat-password" className="text-sm font-semibold text-foreground">
               Confirmar contraseña
             </Label>
-            <Input
-              id="repeat-password"
-              type="password"
-              placeholder="Repite tu contraseña"
-              required
-              value={repeatPassword}
-              onChange={(e) => setRepeatPassword(e.target.value)}
-              className="bg-muted/50"
-            />
+            <div className="relative">
+              <Input
+                id="repeat-password"
+                type={showRepeatPassword ? "text" : "password"}
+                placeholder="Repite tu contraseña"
+                required
+                value={repeatPassword}
+                onChange={(e) => setRepeatPassword(e.target.value)}
+                className="bg-muted/50 pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowRepeatPassword(!showRepeatPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showRepeatPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           {error && (
@@ -165,7 +216,7 @@ export function SignUpForm({
             type="button"
             variant="outline"
             className="w-full font-medium"
-            onClick={() => router.push('/games')}
+            onClick={() => router.push('/')}
           >
             <svg 
               className="w-4 h-4 mr-2" 

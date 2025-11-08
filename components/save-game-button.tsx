@@ -6,19 +6,28 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 interface SaveGameButtonProps {
+  gameData: {
+    id: number;
+    name: string;
+    background_image?: string;
+    rating?: number;
+    genres?: Array<{ id: number; name: string }>;
+    [key: string]: unknown;
+  };
   isAuthenticated: boolean;
-  gameId?: number; // Marked optional since it's not currently used
   isSaved?: boolean;
-  onSave?: () => Promise<void>;
+  onToggle?: (gameId: number) => Promise<void>;
 }
 
 export function SaveGameButton({
+  gameData,
   isAuthenticated,
   isSaved = false,
-  onSave,
+  onToggle,
 }: SaveGameButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState(isSaved);
 
   const handleClick = async () => {
     // Si no está autenticado, redirigir a sign-up con mensaje amigable
@@ -27,11 +36,14 @@ export function SaveGameButton({
       return;
     }
 
-    // Si está autenticado, ejecutar la función de guardar
-    if (onSave) {
+    // Si está autenticado, ejecutar la función de toggle
+    if (onToggle) {
       setLoading(true);
       try {
-        await onSave();
+        await onToggle(gameData.id);
+        setSaved(!saved);
+      } catch (error) {
+        console.error('Error toggling save:', error);
       } finally {
         setLoading(false);
       }
@@ -40,16 +52,16 @@ export function SaveGameButton({
 
   return (
     <Button
-      variant={isSaved ? "default" : "outline"}
+      variant={saved ? "default" : "outline"}
       size="sm"
       onClick={handleClick}
       disabled={loading}
       className="gap-2"
     >
       <Heart
-        className={`h-4 w-4 ${isSaved ? "fill-current" : ""}`}
+        className={`h-4 w-4 ${saved ? "fill-current" : ""}`}
       />
-      {loading ? "..." : isSaved ? "Guardado" : "Guardar"}
+      {loading ? "..." : saved ? "Guardado" : "Guardar"}
     </Button>
   );
 }

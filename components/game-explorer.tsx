@@ -3,21 +3,26 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameSearch, useGenres } from '@/hooks/useGames';
+import { useSavedGames } from '@/hooks/useSavedGames';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, RefreshCw, Loader2 } from 'lucide-react';
+import { SaveGameButton } from '@/components/save-game-button';
+import { ArrowLeft, RefreshCw, Loader2, Trophy, Star } from 'lucide-react';
 import type { RAWGGame } from '@/lib/rawg/client';
 
-type ViewState = 'genres' | 'results';
+type ViewState = 'genres' | 'results' | 'best-of-year' | 'top-50';
 
 export function GameExplorer() {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [currentView, setCurrentView] = useState<ViewState>('genres');
   const [selectedGame, setSelectedGame] = useState<RAWGGame | null>(null);
+  const [specialGames, setSpecialGames] = useState<RAWGGame[]>([]);
+  const [specialLoading, setSpecialLoading] = useState(false);
   
   const { genres, loading: genresLoading } = useGenres();
   const { games, loading: gamesLoading } = useGameSearch(selectedGenres, 1);
+  const { isAuthenticated, isSaved, toggleSaveGame } = useSavedGames();
 
   const toggleGenre = (genreSlug: string) => {
     setSelectedGenres((prev) =>
@@ -40,6 +45,39 @@ export function GameExplorer() {
   const handleNewSearch = () => {
     setSelectedGenres([]);
     setCurrentView('genres');
+  };
+
+  const handleBestOfYear = async () => {
+    setSpecialLoading(true);
+    setCurrentView('best-of-year');
+    
+    try {
+      const currentYear = new Date().getFullYear();
+      const response = await fetch(`/api/games/special?type=best-of-year&year=${currentYear}`);
+      const data = await response.json();
+      setSpecialGames(data.games || []);
+    } catch (error) {
+      console.error('Error fetching best of year:', error);
+      setSpecialGames([]);
+    } finally {
+      setSpecialLoading(false);
+    }
+  };
+
+  const handleTop50 = async () => {
+    setSpecialLoading(true);
+    setCurrentView('top-50');
+    
+    try {
+      const response = await fetch('/api/games/special?type=top-50');
+      const data = await response.json();
+      setSpecialGames(data.games || []);
+    } catch (error) {
+      console.error('Error fetching top 50:', error);
+      setSpecialGames([]);
+    } finally {
+      setSpecialLoading(false);
+    }
   };
 
   const containerVariants = {
@@ -132,6 +170,38 @@ export function GameExplorer() {
               </motion.p>
             </div>
 
+            {/* Botones de secciones especiales */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="flex flex-wrap justify-center gap-4 mb-8"
+            >
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button
+                  onClick={handleBestOfYear}
+                  size="lg"
+                  variant="outline"
+                  className="gap-2 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border-yellow-500/50 hover:bg-yellow-500/20 font-semibold"
+                >
+                  <Trophy className="w-5 h-5" />
+                  Mejores del {new Date().getFullYear()}
+                </Button>
+              </motion.div>
+              
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button
+                  onClick={handleTop50}
+                  size="lg"
+                  variant="outline"
+                  className="gap-2 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/50 hover:bg-purple-500/20 font-semibold"
+                >
+                  <Star className="w-5 h-5" />
+                  Top 50 de Todos los Tiempos
+                </Button>
+              </motion.div>
+            </motion.div>
+
             {genresLoading ? (
               <div className="flex justify-center items-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin" />
@@ -165,7 +235,7 @@ export function GameExplorer() {
                           }`}
                           onClick={() => toggleGenre(genre.slug)}
                         >
-                          <div className="relative h-32">
+                          <div className="relative h-40">
                             <div
                               className="absolute inset-0 bg-cover bg-center"
                               style={{ backgroundImage: `url(${genre.image_background})` }}
@@ -181,17 +251,17 @@ export function GameExplorer() {
                                   xmlns="http://www.w3.org/2000/svg"
                                   viewBox="0 0 24 24"
                                   fill="white"
-                                  className="w-6 h-6 drop-shadow-lg"
+                                  className="w-7 h-7 drop-shadow-lg"
                                 >
                                   <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 22.5l-.394-1.933a2.25 2.25 0 00-1.423-1.423L12.75 18.75l1.933-.394a2.25 2.25 0 001.423-1.423l.394-1.933.394 1.933a2.25 2.25 0 001.423 1.423l1.933.394-1.933.394a2.25 2.25 0 00-1.423 1.423z" />
                                 </svg>
                               </motion.div>
                             )}
-                            <div className="absolute bottom-3 left-3 right-3">
-                              <h3 className="font-bold text-lg text-white drop-shadow-lg">
+                            <div className="absolute bottom-4 left-4 right-4">
+                              <h3 className="font-bold text-xl text-white drop-shadow-lg">
                                 {genre.name}
                               </h3>
-                              <p className="text-xs text-white/90 drop-shadow-md">
+                              <p className="text-sm text-white/90 drop-shadow-md">
                                 {genre.games_count.toLocaleString()} juegos
                               </p>
                             </div>
@@ -301,7 +371,7 @@ export function GameExplorer() {
               </>
             )}
           </motion.div>
-        ) : (
+        ) : currentView === 'results' ? (
           <motion.div
             key="results-view"
             custom={1}
@@ -381,9 +451,9 @@ export function GameExplorer() {
                       }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <Card className="overflow-hidden flex flex-col hover:shadow-2xl transition-all duration-300 relative h-[500px]">
+                      <Card className="overflow-hidden flex flex-col hover:shadow-2xl transition-all duration-300 relative">
                         {/* Imagen más grande - aspecto vertical */}
-                        <div className="relative h-[320px] overflow-hidden">
+                        <div className="relative h-[280px] overflow-hidden">
                           {game.background_image ? (
                             <motion.img
                               src={game.background_image}
@@ -410,7 +480,7 @@ export function GameExplorer() {
                               className="absolute top-3 left-3"
                             >
                               <Badge className="bg-yellow-500 text-black font-bold text-base px-3 py-1">
-                                {game.rating}
+                                ⭐ {game.rating}
                               </Badge>
                             </motion.div>
                           )}
@@ -430,17 +500,17 @@ export function GameExplorer() {
                           </motion.div>
                           
                           {/* Título sobre la imagen (en la parte inferior) */}
-                          <div className="absolute bottom-0 left-0 right-0 p-4">
-                            <h3 className="font-bold text-xl text-white drop-shadow-lg line-clamp-2">
+                          <div className="absolute bottom-0 left-0 right-0 p-3">
+                            <h3 className="font-bold text-lg text-white drop-shadow-lg line-clamp-2">
                               {game.name}
                             </h3>
                           </div>
                         </div>
                         
                         {/* Contenido inferior más compacto */}
-                        <div className="flex-1 flex flex-col p-4 bg-gradient-to-b from-background to-muted/20">
+                        <div className="p-3 bg-gradient-to-b from-background to-muted/20">
                           {/* Información y badges */}
-                          <div className="space-y-3 flex-1">
+                          <div className="space-y-2">
                             {/* Año y Metacritic */}
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               {game.released && (
@@ -492,7 +562,200 @@ export function GameExplorer() {
               </motion.div>
             )}
           </motion.div>
-        )}
+        ) : (currentView === 'best-of-year' || currentView === 'top-50') ? (
+          <motion.div
+            key={`${currentView}-view`}
+            custom={1}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{
+              x: { type: 'spring', stiffness: 300, damping: 30 },
+              opacity: { duration: 0.2 },
+            }}
+          >
+            <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
+              <Button
+                variant="outline"
+                onClick={handleBackToGenres}
+                className="gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Volver al inicio
+              </Button>
+              <div className="flex items-center gap-3">
+                {currentView === 'best-of-year' ? (
+                  <Badge variant="default" className="text-lg px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500">
+                    <Trophy className="w-4 h-4 mr-2" />
+                    Mejores del {new Date().getFullYear()}
+                  </Badge>
+                ) : (
+                  <Badge variant="default" className="text-lg px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500">
+                    <Star className="w-4 h-4 mr-2" />
+                    Top 50 de Todos los Tiempos
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {specialLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            ) : specialGames.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-12"
+              >
+                <p className="text-muted-foreground">
+                  No se encontraron juegos
+                </p>
+              </motion.div>
+            ) : (
+              <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+              >
+                {specialGames.map((game, index) => (
+                  <motion.div
+                    key={game.id}
+                    variants={itemVariants}
+                    layoutId={`game-${game.id}`}
+                    className="group cursor-pointer"
+                    onClick={() => setSelectedGame(game)}
+                  >
+                    <motion.div
+                      whileHover={{ 
+                        y: -12,
+                        transition: { type: 'spring', stiffness: 400, damping: 25 }
+                      }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Card className="overflow-hidden flex flex-col hover:shadow-2xl transition-all duration-300 relative">
+                        {/* Ranking badge para Top 50 */}
+                        {currentView === 'top-50' && (
+                          <div className="absolute top-3 right-3 z-10">
+                            <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold text-lg px-3 py-1 shadow-lg">
+                              #{index + 1}
+                            </Badge>
+                          </div>
+                        )}
+                        
+                        {/* Imagen más grande - aspecto vertical */}
+                        <div className="relative h-[280px] overflow-hidden">
+                          {game.background_image ? (
+                            <motion.img
+                              src={game.background_image}
+                              alt={game.name}
+                              className="w-full h-full object-cover"
+                              whileHover={{ scale: 1.1 }}
+                              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-muted flex items-center justify-center">
+                              <span className="text-muted-foreground text-lg">Sin imagen</span>
+                            </div>
+                          )}
+                          
+                          {/* Gradiente inferior */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                          
+                          {/* Rating badge en la esquina */}
+                          {game.rating && (
+                            <motion.div
+                              initial={{ scale: 0, rotate: -180 }}
+                              animate={{ scale: 1, rotate: 0 }}
+                              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                              className="absolute top-3 left-3"
+                            >
+                              <Badge className="bg-yellow-500 text-black font-bold text-base px-3 py-1">
+                                ⭐ {game.rating}
+                              </Badge>
+                            </motion.div>
+                          )}
+                          
+                          {/* Hover indicator */}
+                          <motion.div
+                            className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                          >
+                            <motion.div
+                              initial={{ scale: 0, y: 20 }}
+                              whileHover={{ scale: 1, y: 0 }}
+                              transition={{ type: 'spring', stiffness: 500, damping: 20 }}
+                              className="bg-white text-black px-6 py-3 rounded-full font-bold text-lg shadow-xl"
+                            >
+                              Ver detalles
+                            </motion.div>
+                          </motion.div>
+                          
+                          {/* Título sobre la imagen (en la parte inferior) */}
+                          <div className="absolute bottom-0 left-0 right-0 p-3">
+                            <h3 className="font-bold text-lg text-white drop-shadow-lg line-clamp-2">
+                              {game.name}
+                            </h3>
+                          </div>
+                        </div>
+                        
+                        {/* Contenido inferior más compacto */}
+                        <div className="p-3 bg-gradient-to-b from-background to-muted/20">
+                          {/* Información y badges */}
+                          <div className="space-y-2">
+                            {/* Año y Metacritic */}
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              {game.released && (
+                                <span className="font-medium">
+                                  {new Date(game.released).getFullYear()}
+                                </span>
+                              )}
+                              {game.metacritic && (
+                                <>
+                                  <span>•</span>
+                                  <Badge 
+                                    variant={game.metacritic >= 75 ? 'default' : 'secondary'}
+                                    className="text-xs"
+                                  >
+                                    Meta: {game.metacritic}
+                                  </Badge>
+                                </>
+                              )}
+                            </div>
+                            
+                            {/* Géneros */}
+                            <div className="flex flex-wrap gap-1.5">
+                              {game.genres?.slice(0, 3).map((genre) => (
+                                <Badge 
+                                  key={genre.id} 
+                                  variant="outline" 
+                                  className="text-xs bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/30"
+                                >
+                                  {genre.name}
+                                </Badge>
+                              ))}
+                            </div>
+                            
+                            {/* Plataformas (iconos o nombres cortos) */}
+                            {game.platforms && game.platforms.length > 0 && (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
+                                <span className="line-clamp-1">
+                                  {game.platforms.slice(0, 3).map((p) => p.platform.name).join(', ')}
+                                  {game.platforms.length > 3 && ` +${game.platforms.length - 3}`}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    </motion.div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </motion.div>
+        ) : null}
       </AnimatePresence>
 
       {/* Modal espectacular para detalles del juego */}
@@ -587,7 +850,7 @@ export function GameExplorer() {
                     >
                       {selectedGame.rating && (
                         <Badge className="bg-yellow-500 text-black font-bold text-sm">
-                          {selectedGame.rating} / 5
+                          ⭐ {selectedGame.rating} / 5
                         </Badge>
                       )}
                       {selectedGame.metacritic && (
@@ -612,6 +875,22 @@ export function GameExplorer() {
                           })}
                         </Badge>
                       )}
+                      
+                      {/* Botón de favoritos */}
+                      <motion.div
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ delay: 0.3, type: 'spring', stiffness: 400, damping: 20 }}
+                      >
+                        <SaveGameButton
+                          gameData={selectedGame as never}
+                          isAuthenticated={isAuthenticated}
+                          isSaved={isSaved(selectedGame.id)}
+                          onToggle={async () => {
+                            await toggleSaveGame(selectedGame as never);
+                          }}
+                        />
+                      </motion.div>
                     </motion.div>
                   </div>
                 </div>

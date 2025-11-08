@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const data = await searchGames({
       genres: genresFormatted,
       page,
-      page_size: 20,
+      page_size: 40,
       search,
       ordering: '-rating', // Ordenar por rating descendente
     });

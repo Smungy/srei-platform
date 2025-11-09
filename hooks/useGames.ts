@@ -90,9 +90,9 @@ export function useGenres() {
 // Hook para obtener detalles de un juego
 // ============================================
 export function useGameDetails(gameId: number | null) {
-  const [game, setGame] = useState<any>(null);
-  const [screenshots, setScreenshots] = useState<any[]>([]);
-  const [trailers, setTrailers] = useState<any[]>([]);
+  const [game, setGame] = useState<Record<string, unknown> | null>(null);
+  const [screenshots, setScreenshots] = useState<Record<string, unknown>[]>([]);
+  const [trailers, setTrailers] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

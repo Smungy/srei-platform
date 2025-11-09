@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/card";
 import { SavedGamesGrid } from "@/components/saved-games-grid";
+import { AIRecommendations } from "@/components/ai-recommendations";
 
 interface Profile {
   id: string;
@@ -119,8 +120,13 @@ export default async function ProtectedPage() {
                 <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Email
                 </div>
-                <div className="text-base font-medium text-foreground">
+                <div className="text-base font-medium text-foreground flex items-center gap-2">
                   {user.email}
+                  {user.email_confirmed_at && (
+                    <span className="text-green-500" title="Email verificado">
+                      ✓
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -145,47 +151,30 @@ export default async function ProtectedPage() {
           </div>
         </Card>
 
+        {/* Recomendaciones con IA */}
+        <AIRecommendations />
+
         {/* Juegos Favoritos */}
         <Card className="p-6">
-          <h2 className="text-2xl font-bold text-foreground mb-6">
-            Tus Juegos Favoritos
-          </h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-foreground">
+              Tus Juegos Favoritos
+            </h2>
+            <div className="flex items-center gap-2">
+              <span className="text-3xl font-bold text-foreground">
+                {savedGames?.length || 0}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                {savedGames?.length === 1 ? 'juego' : 'juegos'}
+              </span>
+            </div>
+          </div>
           
           <SavedGamesGrid 
             initialGames={(savedGames || []) as never} 
             onRemove={handleRemoveGame}
           />
         </Card>
-
-        {/* Estadísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="p-6 text-center">
-            <div className="text-3xl font-bold text-foreground mb-1">
-              {savedGames?.length || 0}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              Juegos Guardados
-            </div>
-          </Card>
-
-          <Card className="p-6 text-center">
-            <div className="text-3xl font-bold text-foreground mb-1">
-              {profile?.preferences?.favorite_genres?.length || 0}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              Géneros Favoritos
-            </div>
-          </Card>
-
-          <Card className="p-6 text-center">
-            <div className="text-3xl font-bold text-foreground mb-1">
-              {user.email_confirmed_at ? '✓' : '✗'}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              Email Verificado
-            </div>
-          </Card>
-        </div>
       </div>
     </div>
   );

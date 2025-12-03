@@ -2,16 +2,34 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useGameSearch, useGenres } from '@/hooks/useGames';
+import { useGameSearch, useGenres, useGameSearchByName } from '@/hooks/useGames';
 import { useSavedGames } from '@/hooks/useSavedGames';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { SaveGameButton } from '@/components/save-game-button';
-import { ArrowLeft, RefreshCw, Loader2, Trophy, Star } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Loader2, Trophy, Star, Search, X, Sparkles, MessageCircle, Send, Heart } from 'lucide-react';
+import Image from 'next/image';
 import type { RAWGGame } from '@/lib/rawg/client';
 
-type ViewState = 'genres' | 'results' | 'best-of-year' | 'top-50';
+type ViewState = 'genres' | 'results' | 'best-of-year' | 'top-50' | 'ai-recommendations';
+
+interface GameRecommendation {
+  title: string;
+  genres: string[];
+  reasoning: string;
+  estimatedRating: number;
+  image?: string;
+}
+
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  recommendations?: GameRecommendation[];
+  timestamp: Date;
+}
 
 export function GameExplorer() {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
@@ -19,10 +37,36 @@ export function GameExplorer() {
   const [selectedGame, setSelectedGame] = useState<RAWGGame | null>(null);
   const [specialGames, setSpecialGames] = useState<RAWGGame[]>([]);
   const [specialLoading, setSpecialLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Estados para recomendaciones IA
+  const [aiRecommendations, setAiRecommendations] = useState<GameRecommendation[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiGeneratedAt, setAiGeneratedAt] = useState<string | null>(null);
+  
+  // Estados para chat IA
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   
   const { genres, loading: genresLoading } = useGenres();
   const { games, loading: gamesLoading } = useGameSearch(selectedGenres, 1);
+  const { games: searchedGames, loading: searchLoading, loadingMore: searchLoadingMore, totalCount: searchTotalCount, hasMore: searchHasMore, loadMore: loadMoreSearchResults } = useGameSearchByName(searchQuery);
   const { isAuthenticated, isSaved, toggleSaveGame } = useSavedGames();
+
+  // Estado para mostrar/ocultar resultados de búsqueda
+  const showSearchResults = searchQuery.trim().length >= 2;
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+  };
 
   const toggleGenre = (genreSlug: string) => {
     setSelectedGenres((prev) =>
@@ -39,11 +83,13 @@ export function GameExplorer() {
   };
 
   const handleBackToGenres = () => {
+    setSearchQuery('');
     setCurrentView('genres');
   };
 
   const handleNewSearch = () => {
     setSelectedGenres([]);
+    setSearchQuery('');
     setCurrentView('genres');
   };
 
@@ -77,6 +123,122 @@ export function GameExplorer() {
       setSpecialGames([]);
     } finally {
       setSpecialLoading(false);
+    }
+  };
+
+  const handleAIRecommendations = async () => {
+    setCurrentView('ai-recommendations');
+    
+    // Si ya hay recomendaciones cargadas, no las vuelve a cargar
+    if (aiRecommendations.length > 0 && !aiError) {
+      return;
+    }
+    
+    // Cargar recomendaciones previas
+    setAiLoading(true);
+    setAiError(null);
+    
+    try {
+      const response = await fetch('/api/recommendations');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.recommendations && data.recommendations.length > 0) {
+          setAiRecommendations(data.recommendations);
+          setAiGeneratedAt(data.generatedAt);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading previous recommendations:', error);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const generateAIRecommendations = async () => {
+    setAiLoading(true);
+    setAiError(null);
+    
+    try {
+      const response = await fetch('/api/recommendations', {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al generar recomendaciones');
+      }
+      
+      const data = await response.json();
+      setAiRecommendations(data.recommendations);
+      setAiGeneratedAt(new Date().toISOString());
+    } catch (error) {
+      console.error('Error generating recommendations:', error);
+      setAiError(error instanceof Error ? error.message : 'Error al generar recomendaciones');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const toggleChat = () => {
+    setShowChat(!showChat);
+    // Mensaje de bienvenida si es la primera vez
+    if (chatMessages.length === 0) {
+      setChatMessages([{
+        id: 'welcome',
+        role: 'assistant',
+        content: '¡Hola! 🎮 Soy tu asistente de videojuegos. Puedes preguntarme cosas como:\n\n• "Recomiéndame juegos de disparos con buena historia"\n• "Quiero juegos parecidos a Dark Souls"\n• "¿Qué juegos de mundo abierto me recomiendas?"\n\n¿Qué tipo de juegos te gustaría descubrir?',
+        recommendations: [],
+        timestamp: new Date(),
+      }]);
+    }
+  };
+
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: chatInput.trim(),
+      timestamp: new Date(),
+    };
+
+    setChatMessages(prev => [...prev, userMessage]);
+    setChatInput('');
+    setChatLoading(true);
+
+    try {
+      const response = await fetch('/api/recommendations/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMessage.content }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al procesar tu mensaje');
+      }
+
+      const assistantMessage: ChatMessage = {
+        id: `assistant-${Date.now()}`,
+        role: 'assistant',
+        content: data.message,
+        recommendations: data.recommendations || [],
+        timestamp: new Date(),
+      };
+
+      setChatMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      const errorMessage: ChatMessage = {
+        id: `error-${Date.now()}`,
+        role: 'assistant',
+        content: error instanceof Error ? error.message : 'Hubo un error. Por favor intenta de nuevo.',
+        timestamp: new Date(),
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setChatLoading(false);
     }
   };
 
@@ -148,7 +310,7 @@ export function GameExplorer() {
                 Explorador de Videojuegos
               </motion.h1>
               <motion.p 
-                className="text-lg md:text-xl text-muted-foreground"
+                className="text-lg md:text-xl text-muted-foreground mb-6"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.3 }}
@@ -168,9 +330,152 @@ export function GameExplorer() {
                   Selecciona uno o más géneros para descubrir juegos increíbles
                 </motion.span>
               </motion.p>
+
+              {/* Barra de búsqueda */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="max-w-xl mx-auto"
+              >
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Buscar juegos por nombre..."
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    className="pl-12 pr-12 py-6 text-lg rounded-full border-2 border-purple-500/30 focus:border-purple-500 bg-background/80 backdrop-blur-sm"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={clearSearch}
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 h-6 w-6 rounded-full bg-muted hover:bg-muted-foreground/20 flex items-center justify-center transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                {searchQuery.length > 0 && searchQuery.length < 2 && (
+                  <p className="text-sm text-muted-foreground mt-2">Escribe al menos 2 caracteres para buscar</p>
+                )}
+              </motion.div>
             </div>
 
+            {/* Resultados de búsqueda (se muestran cuando hay query) */}
+            {showSearchResults && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className="mb-8"
+              >
+                <div className="text-center mb-4">
+                  {searchLoading ? (
+                    <div className="flex justify-center items-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-purple-500" />
+                      <span className="ml-2 text-muted-foreground">Buscando...</span>
+                    </div>
+                  ) : searchedGames.length === 0 ? (
+                    <p className="text-muted-foreground py-4">
+                      No se encontraron juegos para &quot;{searchQuery}&quot;
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {searchTotalCount.toLocaleString()} resultados para &quot;{searchQuery}&quot;
+                    </p>
+                  )}
+                </div>
+
+                {!searchLoading && searchedGames.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {searchedGames.map((game) => (
+                      <motion.div
+                        key={game.id}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="group cursor-pointer"
+                        onClick={() => setSelectedGame(game)}
+                      >
+                        <Card className="overflow-hidden hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
+                          <div className="relative h-32">
+                            {game.background_image ? (
+                              <Image
+                                src={game.background_image}
+                                alt={game.name}
+                                fill
+                                className="object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-muted flex items-center justify-center">
+                                <span className="text-muted-foreground text-sm">Sin imagen</span>
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                            
+                            {game.rating && (
+                              <Badge className="absolute top-2 left-2 bg-yellow-500 text-black text-xs">
+                                ⭐ {game.rating}
+                              </Badge>
+                            )}
+                            
+                            {isAuthenticated && (
+                              <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
+                                <SaveGameButton
+                                  gameData={{ ...game }}
+                                  isAuthenticated={isAuthenticated}
+                                  isSaved={isSaved(game.id)}
+                                  onToggle={async () => { await toggleSaveGame({ ...game }); }}
+                                />
+                              </div>
+                            )}
+                            
+                            <div className="absolute bottom-2 left-2 right-2">
+                              <h3 className="font-semibold text-sm text-white line-clamp-2 drop-shadow">
+                                {game.name}
+                              </h3>
+                            </div>
+                          </div>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Botón Ver más y contador */}
+                {!searchLoading && searchedGames.length > 0 && (
+                  <div className="text-center mt-6 space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Mostrando {searchedGames.length} de {searchTotalCount.toLocaleString()} resultados
+                    </p>
+                    {searchHasMore && (
+                      <Button
+                        onClick={loadMoreSearchResults}
+                        disabled={searchLoadingMore}
+                        variant="outline"
+                        className="gap-2"
+                      >
+                        {searchLoadingMore ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Cargando...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-4 w-4" />
+                            Ver más resultados
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            )}
+
             {/* Botones de secciones especiales */}
+            {!showSearchResults && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -200,9 +505,22 @@ export function GameExplorer() {
                   Top 50 de Todos los Tiempos
                 </Button>
               </motion.div>
-            </motion.div>
 
-            {genresLoading ? (
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button
+                  onClick={handleAIRecommendations}
+                  size="lg"
+                  variant="outline"
+                  className="gap-2 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border-indigo-500/50 hover:bg-indigo-500/20 font-semibold"
+                >
+                  <Sparkles className="w-5 h-5" />
+                  Recomendaciones IA
+                </Button>
+              </motion.div>
+            </motion.div>
+            )}
+
+            {!showSearchResults && (genresLoading ? (
               <div className="flex justify-center items-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin" />
               </div>
@@ -369,7 +687,7 @@ export function GameExplorer() {
                   </motion.div>
                 )}
               </>
-            )}
+            ))}
           </motion.div>
         ) : currentView === 'results' ? (
           <motion.div
@@ -754,6 +1072,357 @@ export function GameExplorer() {
                 ))}
               </motion.div>
             )}
+          </motion.div>
+        ) : currentView === 'ai-recommendations' ? (
+          <motion.div
+            key="ai-recommendations-view"
+            custom={1}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{
+              x: { type: 'spring', stiffness: 300, damping: 30 },
+              opacity: { duration: 0.2 },
+            }}
+          >
+            <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
+              <Button
+                variant="outline"
+                onClick={handleBackToGenres}
+                className="gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Volver al inicio
+              </Button>
+              <Badge variant="default" className="text-lg px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500">
+                <Sparkles className="w-4 h-4 mr-2" />
+                Recomendaciones IA
+              </Badge>
+            </div>
+
+            {/* Dos opciones: Basado en favoritos o Chat */}
+            <div className="grid md:grid-cols-2 gap-6 mb-8">
+              {/* Opción 1: Basado en favoritos */}
+              <Card className={`p-6 cursor-pointer transition-all border-2 ${!showChat ? 'border-purple-500 bg-purple-500/5' : 'border-transparent hover:border-purple-500/50'}`} onClick={() => setShowChat(false)}>
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+                    <Heart className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg mb-1">Basado en tus favoritos</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Genera recomendaciones automáticas analizando los juegos que has guardado en tu biblioteca
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Opción 2: Chat personalizado */}
+              <Card className={`p-6 cursor-pointer transition-all border-2 ${showChat ? 'border-green-500 bg-green-500/5' : 'border-transparent hover:border-green-500/50'}`} onClick={() => { setShowChat(true); toggleChat(); }}>
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center flex-shrink-0">
+                    <MessageCircle className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg mb-1">Chat personalizado</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Describe qué tipo de juegos buscas y recibe recomendaciones específicas
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {!showChat ? (
+                /* Vista de recomendaciones basadas en favoritos */
+                <motion.div
+                  key="favorites-view"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                >
+                  {/* Botón generar */}
+                  <div className="flex justify-center mb-6">
+                    <Button
+                      onClick={generateAIRecommendations}
+                      disabled={aiLoading}
+                      size="lg"
+                      className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 gap-2"
+                    >
+                      {aiLoading ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Analizando tus favoritos...
+                        </>
+                      ) : (
+                        <>
+                          <Heart className="w-5 h-5" />
+                          {aiRecommendations.length > 0 ? 'Regenerar desde mis favoritos' : 'Generar desde mis favoritos'}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {aiGeneratedAt && (
+                    <p className="text-xs text-muted-foreground mb-4 text-center">
+                      Última actualización: {new Date(aiGeneratedAt).toLocaleString('es-ES', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  )}
+
+                  {aiLoading ? (
+                    <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                      <Loader2 className="w-12 h-12 animate-spin text-purple-500" />
+                      <p className="text-sm text-muted-foreground">
+                        Analizando tus juegos guardados y generando recomendaciones...
+                      </p>
+                    </div>
+                  ) : aiError ? (
+                    <div className="text-center py-12 space-y-4">
+                      <div className="w-16 h-16 rounded-full bg-yellow-500/10 flex items-center justify-center mx-auto">
+                        <Sparkles className="w-8 h-8 text-yellow-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">{aiError}</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={generateAIRecommendations}
+                          className="mt-4"
+                        >
+                          Intentar de nuevo
+                        </Button>
+                      </div>
+                    </div>
+                  ) : aiRecommendations.length === 0 ? (
+                    <div className="text-center py-12 space-y-4">
+                      <div className="w-16 h-16 rounded-full bg-purple-500/10 flex items-center justify-center mx-auto">
+                        <Heart className="w-8 h-8 text-purple-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Aún no has generado recomendaciones
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Haz clic en el botón para obtener sugerencias basadas en los juegos que has guardado como favoritos
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <motion.div
+                      variants={containerVariants}
+                      initial="hidden"
+                      animate="show"
+                      className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+                    >
+                      {aiRecommendations.map((rec, index) => (
+                        <motion.div
+                          key={`${rec.title}-${index}`}
+                          variants={itemVariants}
+                        >
+                          <Card className="h-full hover:shadow-lg transition-shadow border-purple-500/20 overflow-hidden">
+                            <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-purple-900/50 to-blue-900/50">
+                              {rec.image ? (
+                                <Image
+                                  src={rec.image}
+                                  alt={rec.title}
+                                  fill
+                                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                  className="object-cover transition-transform hover:scale-105"
+                                  onError={(e) => {
+                                    // Ocultar imagen rota
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <Sparkles className="w-12 h-12 text-purple-400/50" />
+                                </div>
+                              )}
+                              <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/70 backdrop-blur-sm px-2 py-1 rounded-full">
+                                <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
+                                <span className="text-xs font-semibold text-white">
+                                  {rec.estimatedRating}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="p-4">
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <h3 className="text-lg font-bold leading-tight">
+                                  {rec.title}
+                                </h3>
+                              </div>
+                              <div className="flex flex-wrap gap-1 mt-2 mb-3">
+                                {rec.genres.map(genre => (
+                                  <Badge
+                                    key={genre}
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
+                                    {genre}
+                                  </Badge>
+                                ))}
+                              </div>
+                              <p className="text-sm text-muted-foreground leading-relaxed">
+                                {rec.reasoning}
+                              </p>
+                            </div>
+                          </Card>
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                  )}
+                </motion.div>
+              ) : (
+                /* Vista de chat */
+                <motion.div
+                  key="chat-view"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                >
+                  <Card className="border-green-500/20 overflow-hidden">
+                    {/* Mensajes */}
+                    <div className="h-[400px] overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-background to-muted/10">
+                      <AnimatePresence>
+                        {chatMessages.map((msg) => (
+                          <motion.div
+                            key={msg.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div
+                              className={`max-w-[80%] ${
+                                msg.role === 'user'
+                                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl rounded-tr-sm'
+                                  : 'bg-muted rounded-2xl rounded-tl-sm'
+                              } p-4`}
+                            >
+                              <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                              
+                              {/* Recomendaciones del asistente */}
+                              {msg.recommendations && msg.recommendations.length > 0 && (
+                                <div className="mt-4 space-y-3">
+                                  {msg.recommendations.map((rec, idx) => (
+                                    <motion.div
+                                      key={`${msg.id}-rec-${idx}`}
+                                      initial={{ opacity: 0, scale: 0.9 }}
+                                      animate={{ opacity: 1, scale: 1 }}
+                                      transition={{ delay: idx * 0.1 }}
+                                    >
+                                      <Card className="bg-background/80 overflow-hidden">
+                                        <div className="flex gap-3">
+                                          <div className="relative w-24 h-24 flex-shrink-0 bg-gradient-to-br from-purple-900/50 to-blue-900/50">
+                                            {rec.image ? (
+                                              <Image
+                                                src={rec.image}
+                                                alt={rec.title}
+                                                fill
+                                                className="object-cover"
+                                                onError={(e) => {
+                                                  (e.target as HTMLImageElement).style.display = 'none';
+                                                }}
+                                              />
+                                            ) : (
+                                              <div className="absolute inset-0 flex items-center justify-center">
+                                                <Sparkles className="w-6 h-6 text-purple-400/50" />
+                                              </div>
+                                            )}
+                                          </div>
+                                          <div className="p-3 flex-1">
+                                            <div className="flex items-start justify-between gap-2">
+                                              <h4 className="font-bold text-sm">{rec.title}</h4>
+                                              <div className="flex items-center gap-1 flex-shrink-0">
+                                                <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
+                                                <span className="text-xs font-semibold">{rec.estimatedRating}</span>
+                                              </div>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1 mt-1">
+                                              {rec.genres.slice(0, 3).map(genre => (
+                                                <Badge key={genre} variant="secondary" className="text-xs py-0">
+                                                  {genre}
+                                                </Badge>
+                                              ))}
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                                              {rec.reasoning}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </Card>
+                                    </motion.div>
+                                  ))}
+                                </div>
+                              )}
+                              
+                              <span className="text-xs opacity-60 mt-2 block">
+                                {msg.timestamp.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                      
+                      {/* Loading indicator */}
+                      {chatLoading && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="flex justify-start"
+                        >
+                          <div className="bg-muted rounded-2xl rounded-tl-sm p-4">
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="w-4 h-4 animate-spin text-green-500" />
+                              <span className="text-sm text-muted-foreground">Pensando...</span>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </div>
+                    
+                    {/* Input */}
+                    <div className="border-t border-green-500/20 p-4 bg-muted/30">
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          sendChatMessage();
+                        }}
+                        className="flex gap-2"
+                      >
+                        <Input
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                          placeholder="Ej: Quiero juegos de disparos con buena historia..."
+                          className="flex-1 border-green-500/30 focus:border-green-500"
+                          disabled={chatLoading}
+                          maxLength={500}
+                        />
+                        <Button
+                          type="submit"
+                          disabled={chatLoading || !chatInput.trim()}
+                          className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                        >
+                          {chatLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Send className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </form>
+                    </div>
+                  </Card>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         ) : null}
       </AnimatePresence>

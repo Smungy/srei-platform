@@ -154,4 +154,79 @@ Explica en 2-3 oraciones de manera conversacional y entusiasta.`;
   }
 }
 
+export interface ChatRecommendationResponse {
+  message: string;
+  recommendations: GameRecommendation[];
+}
+
+/**
+ * Genera recomendaciones de videojuegos basadas en un prompt del usuario
+ * @param userPrompt - Lo que el usuario quiere (ej: "juegos de disparos con historia")
+ * @returns Respuesta con mensaje y recomendaciones
+ */
+export async function generateChatRecommendations(
+  userPrompt: string
+): Promise<ChatRecommendationResponse> {
+  const systemPrompt = `Eres un experto en videojuegos amigable y entusiasta. Tu ÚNICO tema de conversación son los videojuegos.
+
+REGLAS IMPORTANTES:
+1. SOLO puedes hablar de videojuegos, recomendaciones de juegos, géneros de juegos, y temas relacionados con gaming.
+2. Si el usuario pregunta sobre cualquier otro tema (política, clima, programación, etc.), responde amablemente que solo puedes ayudar con recomendaciones de videojuegos.
+3. Siempre intenta recomendar juegos específicos cuando sea posible.
+4. Sé conversacional, amigable y usa emojis ocasionalmente.
+5. Si el usuario te saluda o hace preguntas generales, responde brevemente y ofrece ayuda con recomendaciones.
+
+FORMATO DE RESPUESTA:
+Debes responder SIEMPRE en formato JSON con esta estructura exacta:
+{
+  "message": "Tu mensaje conversacional aquí",
+  "recommendations": [
+    {
+      "title": "Nombre exacto del juego",
+      "reasoning": "Por qué este juego encaja con lo que pide",
+      "genres": ["Género1", "Género2"],
+      "estimatedRating": "4.5"
+    }
+  ]
+}
+
+Si la pregunta no requiere recomendaciones específicas (saludos, preguntas sobre ti, etc.), deja el array de recommendations vacío [].
+Si es sobre un tema no relacionado con videojuegos, deja recommendations vacío y explica amablemente que solo puedes ayudar con juegos.`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt,
+        },
+        {
+          role: 'user',
+          content: userPrompt,
+        },
+      ],
+      temperature: 0.8,
+      max_tokens: 2000,
+      response_format: { type: 'json_object' },
+    });
+
+    const responseText = completion.choices[0]?.message?.content;
+    
+    if (!responseText) {
+      throw new Error('No se recibió respuesta de OpenAI');
+    }
+
+    const parsed = JSON.parse(responseText);
+    
+    return {
+      message: parsed.message || 'Aquí tienes algunas recomendaciones:',
+      recommendations: parsed.recommendations || [],
+    };
+  } catch (error) {
+    console.error('Error generating chat recommendations:', error);
+    throw error;
+  }
+}
+
 export { openai };

@@ -79,6 +79,8 @@ export interface RAWGSearchParams {
   page?: number;
   page_size?: number; // Max 40
   search?: string;
+  search_precise?: boolean; // Búsqueda más precisa
+  search_exact?: boolean; // Búsqueda exacta
   ordering?: string; // -rating, -released, -added, etc.
   platforms?: string; // IDs separados por coma
   dates?: string; // Formato: YYYY-MM-DD,YYYY-MM-DD
@@ -108,6 +110,8 @@ export async function searchGames(
     ...(params.genres && { genres: params.genres }),
     ...(params.page && { page: params.page.toString() }),
     ...(params.search && { search: params.search }),
+    ...(params.search_precise && { search_precise: 'true' }),
+    ...(params.search_exact && { search_exact: 'true' }),
     ...(params.ordering && { ordering: params.ordering }),
     ...(params.platforms && { platforms: params.platforms }),
     ...(params.dates && { dates: params.dates }),

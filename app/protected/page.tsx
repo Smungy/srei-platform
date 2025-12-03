@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/card";
 import { SavedGamesGrid } from "@/components/saved-games-grid";
-import { AIRecommendations } from "@/components/ai-recommendations";
+import { EditProfileForm } from "@/components/edit-profile-form";
 
 interface Profile {
   id: string;
@@ -97,25 +97,15 @@ export default async function ProtectedPage() {
         <Card className="p-6">
           <h2 className="text-2xl font-bold text-foreground mb-6">Tu Perfil</h2>
           
-          <div className="flex gap-6 items-start">
-            {/* Avatar */}
-            <div className="flex-shrink-0">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500 flex items-center justify-center text-3xl text-white shadow-lg">
-                {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : user.email?.charAt(0).toUpperCase()}
-              </div>
-            </div>
+          <EditProfileForm
+            userId={user.id}
+            initialFullName={profile?.full_name || user.user_metadata?.full_name || null}
+            initialUsername={profile?.username || user.user_metadata?.username || null}
+          />
 
-            {/* Información del Usuario */}
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-1">
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Nombre
-                </div>
-                <div className="text-base font-medium text-foreground">
-                  {profile?.full_name || user.user_metadata?.full_name || 'No especificado'}
-                </div>
-              </div>
-
+          {/* Info adicional */}
+          <div className="mt-6 pt-6 border-t border-border">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1">
                 <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Email
@@ -138,21 +128,9 @@ export default async function ProtectedPage() {
                   {formatDate(user.created_at)}
                 </div>
               </div>
-
-              <div className="space-y-1">
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Username
-                </div>
-                <div className="text-base font-medium text-foreground">
-                  {profile?.username || 'No configurado'}
-                </div>
-              </div>
             </div>
           </div>
         </Card>
-
-        {/* Recomendaciones con IA */}
-        <AIRecommendations />
 
         {/* Juegos Favoritos */}
         <Card className="p-6">

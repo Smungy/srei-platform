@@ -32,7 +32,7 @@ export default async function GamesPage() {
         <div className="w-full">
           <h1 className="text-4xl font-bold">Descubre Videojuegos</h1>
           <p className="text-muted-foreground mt-2 text-lg">
-            Selecciona los géneros que te interesan y obtén recomendaciones con IA
+            Explora por géneros, busca tus juegos favoritos o descubre nuevos títulos con recomendaciones IA
           </p>
           
           {/* Mensaje para usuarios no registrados */}

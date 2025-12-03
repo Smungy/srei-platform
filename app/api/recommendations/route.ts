@@ -5,6 +5,7 @@ import { searchGames } from '@/lib/rawg/client';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30; // Aumentar timeout a 30 segundos
 
 /**
  * POST /api/recommendations
@@ -88,17 +89,23 @@ export async function POST() {
       userName,
     });
 
-    // Enriquecer recomendaciones con imágenes de RAWG
+    // Enriquecer todas las recomendaciones con imágenes de RAWG en paralelo
     const enrichedRecommendations = await Promise.all(
       recommendations.map(async (rec) => {
         try {
-          // Buscar el juego en RAWG por nombre
-          const searchResult = await searchGames({
+          // Promise.race para timeout de 2 segundos
+          const searchPromise = searchGames({
             search: rec.title,
             page_size: 1,
           });
+          
+          const timeoutPromise = new Promise<null>((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), 2000)
+          );
 
-          if (searchResult.results.length > 0) {
+          const searchResult = await Promise.race([searchPromise, timeoutPromise]);
+
+          if (searchResult && searchResult.results && searchResult.results.length > 0) {
             const game = searchResult.results[0];
             return {
               ...rec,
@@ -107,10 +114,10 @@ export async function POST() {
             };
           }
         } catch (error) {
-          console.error(`Error fetching image for ${rec.title}:`, error);
+          console.error(`Error/timeout fetching image for ${rec.title}:`, error);
         }
         
-        // Si no se encuentra, devolver sin imagen
+        // Si no se encuentra o timeout, devolver sin imagen
         return {
           ...rec,
           image: null,

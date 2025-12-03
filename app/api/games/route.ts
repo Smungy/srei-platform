@@ -16,7 +16,11 @@ export async function GET(request: NextRequest) {
       page,
       page_size: 40,
       search,
-      ordering: '-rating', // Ordenar por rating descendente
+      // Solo ordenar por rating si NO hay término de búsqueda
+      // Cuando hay búsqueda, dejamos que RAWG ordene por relevancia
+      ordering: search ? undefined : '-rating',
+      // Buscar en más campos cuando hay término de búsqueda
+      search_precise: search ? true : undefined,
     });
 
     // Si el usuario está autenticado, guardar en historial

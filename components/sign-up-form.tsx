@@ -15,6 +15,7 @@ export function SignUpForm({
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
   const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
@@ -38,8 +39,17 @@ export function SignUpForm({
       return;
     }
 
+    // Validar username
+    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+    if (!usernameRegex.test(username.trim())) {
+      setError("El username debe tener entre 3-20 caracteres (letras, números y guion bajo)");
+      setIsLoading(false);
+      return;
+    }
+
     // Limpiar espacios del email
     const cleanEmail = email.trim().toLowerCase();
+    const cleanUsername = username.trim().toLowerCase();
 
     if (password !== repeatPassword) {
       setError("Las contraseñas no coinciden");
@@ -61,6 +71,7 @@ export function SignUpForm({
           emailRedirectTo: `${window.location.origin}/protected`,
           data: {
             full_name: fullName,
+            username: cleanUsername,
           },
         },
       });
@@ -112,6 +123,25 @@ export function SignUpForm({
               onChange={(e) => setFullName(e.target.value)}
               className="bg-muted/50"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="username" className="text-sm font-semibold text-foreground">
+              Username
+            </Label>
+            <Input
+              id="username"
+              type="text"
+              placeholder="tu_apodo"
+              required
+              value={username}
+              onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+              className="bg-muted/50"
+              maxLength={20}
+            />
+            <p className="text-xs text-muted-foreground">
+              Este será tu apodo único en la plataforma (3-20 caracteres, letras, números y _)
+            </p>
           </div>
 
           <div className="space-y-2">
